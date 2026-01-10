@@ -122,7 +122,7 @@ export default function CampsPage() {
                                                 </p>
                                             </div>
                                             <div>
-                                                <p className="text-2xl font-bold text-white">${camp.price}</p>
+                                                <p className="text-2xl font-bold text-white">₱{camp.price}</p>
                                             </div>
                                             {camp.description && (
                                                 <div>

@@ -141,7 +141,7 @@ export default async function CoachDashboard() {
                                                 <td className="py-4 px-4 text-gray-400">
                                                     {new Date(camp.start_date).toLocaleDateString()} - {new Date(camp.end_date).toLocaleDateString()}
                                                 </td>
-                                                <td className="py-4 px-4 text-primary font-bold">${camp.price}</td>
+                                                <td className="py-4 px-4 text-primary font-bold">₱{camp.price}</td>
                                             </tr>
                                         ))}
                                     </tbody>

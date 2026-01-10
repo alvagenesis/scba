@@ -191,7 +191,7 @@ export default function CampsManagementPage() {
                                         required
                                     />
                                     <Input
-                                        label="Price ($)"
+                                        label="Price (PHP)"
                                         type="number"
                                         step="0.01"
                                         placeholder="299.99"
@@ -248,7 +248,7 @@ export default function CampsManagementPage() {
                                         <p className="text-sm text-gray-400 flex items-center gap-2">
                                             <span className="text-primary">📅</span> {new Date(camp.start_date).toLocaleDateString()} - {new Date(camp.end_date).toLocaleDateString()}
                                         </p>
-                                        <p className="text-2xl font-bold text-white">${camp.price}</p>
+                                        <p className="text-2xl font-bold text-white">₱{camp.price}</p>
                                         {camp.description && (
                                             <p className="text-sm text-gray-500 mt-2 line-clamp-2">{camp.description}</p>
                                         )}
