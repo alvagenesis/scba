@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Card, { CardBody, CardHeader } from '@/components/ui/Card'
+import Input from '@/components/ui/Input'
 import type { Profile, EnrollmentWithDetails } from '@/lib/types/database'
 import Navbar from '@/components/layout/Navbar'
 import LoadingState from '@/components/ui/LoadingState'
@@ -13,6 +15,7 @@ export default function PlayersPage() {
     const [enrollments, setEnrollments] = useState<EnrollmentWithDetails[]>([])
     const [profile, setProfile] = useState<Profile | null>(null)
     const [loading, setLoading] = useState(true)
+    const [searchQuery, setSearchQuery] = useState('')
     const router = useRouter()
     const supabase = createClient()
 
@@ -56,6 +59,11 @@ export default function PlayersPage() {
         setLoading(false)
     }
 
+    const filteredStudents = students.filter(student =>
+        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (student.email && student.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+
     if (loading) {
         return <LoadingState message="Loading..." />
     }
@@ -72,12 +80,25 @@ export default function PlayersPage() {
 
                 <Card>
                     <CardHeader>
-                        <h2 className="text-xl font-bold text-white font-oswald uppercase tracking-wider">All Students ({students.length})</h2>
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                            <h2 className="text-xl font-bold text-white font-oswald uppercase tracking-wider">All Students ({filteredStudents.length})</h2>
+                            <div className="w-full md:w-96">
+                                <Input
+                                    placeholder="Search by name or email..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardBody>
                         {students.length === 0 ? (
                             <div className="text-center py-12 text-gray-500">
                                 No students enrolled yet.
+                            </div>
+                        ) : filteredStudents.length === 0 ? (
+                            <div className="text-center py-12 text-gray-500">
+                                No students found matching "{searchQuery}"
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -90,15 +111,19 @@ export default function PlayersPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {students.map((student) => {
+                                        {filteredStudents.map((student) => {
                                             const studentEnrollments = enrollments.filter(
                                                 (e: any) => e.student_id === student.id
                                             )
 
                                             return (
                                                 <tr key={student.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                                    <td className="py-4 px-4 font-bold text-white uppercase">{student.name}</td>
-                                                    <td className="py-4 px-4 text-gray-400 text-sm tracking-wide">{student.id}</td>
+                                                    <td className="py-4 px-4 font-bold text-white uppercase">
+                                                        <Link href={`/coach/players/${student.id}`} className="hover:text-primary transition-colors">
+                                                            {student.name}
+                                                        </Link>
+                                                    </td>
+                                                    <td className="py-4 px-4 text-gray-400 text-sm tracking-wide lowercase">{student.email || student.id}</td>
                                                     <td className="py-4 px-4">
                                                         {studentEnrollments.length > 0 ? (
                                                             <div className="space-y-1">
