@@ -31,7 +31,9 @@ export interface Game {
     id: string
     camp_id: string
     game_date: string
-    opponent_name: string
+    opponent_name?: string | null
+    team_1_name: string
+    team_2_name: string
     created_at: string
     updated_at: string
 }
@@ -45,6 +47,7 @@ export interface GameStat {
     assists: number
     steals: number
     blocks: number
+    team_choice: 'team_1' | 'team_2' | null
     created_at: string
     updated_at: string
 }

@@ -21,7 +21,8 @@ export default function GamesPage() {
     // Form state
     const [campId, setCampId] = useState('')
     const [gameDate, setGameDate] = useState('')
-    const [opponentName, setOpponentName] = useState('')
+    const [team1Name, setTeam1Name] = useState('Team 1')
+    const [team2Name, setTeam2Name] = useState('Team 2')
 
     const router = useRouter()
     const supabase = createClient()
@@ -67,7 +68,8 @@ export default function GamesPage() {
     const resetForm = () => {
         setCampId('')
         setGameDate('')
-        setOpponentName('')
+        setTeam1Name('Team 1')
+        setTeam2Name('Team 2')
         setEditingGame(null)
         setShowForm(false)
     }
@@ -75,7 +77,8 @@ export default function GamesPage() {
     const handleEdit = (game: Game) => {
         setCampId(game.camp_id)
         setGameDate(game.game_date)
-        setOpponentName(game.opponent_name)
+        setTeam1Name(game.team_1_name)
+        setTeam2Name(game.team_2_name)
         setEditingGame(game)
         setShowForm(true)
     }
@@ -86,7 +89,8 @@ export default function GamesPage() {
         const gameData = {
             camp_id: campId,
             game_date: gameDate,
-            opponent_name: opponentName,
+            team_1_name: team1Name,
+            team_2_name: team2Name,
         }
 
         if (editingGame) {
@@ -180,11 +184,19 @@ export default function GamesPage() {
                                         required
                                     />
                                     <Input
-                                        label="Opponent Name"
+                                        label="Team 1 Name"
                                         type="text"
-                                        placeholder="Phoenix Suns Jr."
-                                        value={opponentName}
-                                        onChange={(e) => setOpponentName(e.target.value)}
+                                        placeholder="Team 1"
+                                        value={team1Name}
+                                        onChange={(e) => setTeam1Name(e.target.value)}
+                                        required
+                                    />
+                                    <Input
+                                        label="Team 2 Name"
+                                        type="text"
+                                        placeholder="Team 2"
+                                        value={team2Name}
+                                        onChange={(e) => setTeam2Name(e.target.value)}
                                         required
                                     />
                                 </div>
@@ -218,7 +230,7 @@ export default function GamesPage() {
                                             <div className="flex items-center gap-4">
                                                 <div>
                                                     <h3 className="text-lg font-bold text-white font-oswald uppercase tracking-wide group-hover:text-primary transition-colors">
-                                                        vs {game.opponent_name}
+                                                        {game.team_1_name} vs {game.team_2_name}
                                                     </h3>
                                                     <p className="text-sm text-primary font-bold">{game.camps?.name}</p>
                                                 </div>
