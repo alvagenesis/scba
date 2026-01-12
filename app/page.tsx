@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import LandingNavbar from '@/components/LandingNavbar'
 
 export default function Home() {
   return (
@@ -12,27 +13,10 @@ export default function Home() {
       </div>
 
       {/* Navigation / Header */}
-      <header className="relative z-10 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <div className="relative h-16 w-48">
-            <Image
-              src="/batang-scba-logo.png"
-              alt="Batang SCBA Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-        </div>
-        <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-300 uppercase tracking-widest">
-          <Link href="#" className="hover:text-primary transition-colors">About</Link>
-          <Link href="#" className="hover:text-primary transition-colors">Camps</Link>
-          <Link href="#" className="hover:text-primary transition-colors">Contact</Link>
-        </nav>
-      </header>
+      <LandingNavbar />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative z-10">
         <div className="text-center max-w-5xl mx-auto">
           <div className="inline-block mb-4 px-3 py-1 border border-primary/30 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-sm">
             Elevate Your Game
@@ -54,7 +38,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto w-full">
             {/* Coach Card */}
-            <div className="group relative bg-card border border-white/10 hover:border-primary/50 text-left p-8 rounded-none transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,215,0,0.1)]">
+            <div className="group relative bg-card border border-white/10 hover:border-primary/50 text-left p-6 md:p-8 rounded-none transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,215,0,0.1)]">
               <div className="absolute top-0 left-0 w-1 h-0 bg-primary group-hover:h-full transition-all duration-300" />
               <div className="text-4xl mb-6 bg-white/5 w-16 h-16 flex items-center justify-center rounded-full group-hover:bg-primary group-hover:text-black transition-colors duration-300">
                 👨‍🏫
@@ -72,7 +56,7 @@ export default function Home() {
             </div>
 
             {/* Student Card */}
-            <div className="group relative bg-card border border-white/10 hover:border-primary/50 text-left p-8 rounded-none transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,215,0,0.1)]">
+            <div className="group relative bg-card border border-white/10 hover:border-primary/50 text-left p-6 md:p-8 rounded-none transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,215,0,0.1)]">
               <div className="absolute top-0 left-0 w-1 h-0 bg-primary group-hover:h-full transition-all duration-300" />
               <div className="text-4xl mb-6 bg-white/5 w-16 h-16 flex items-center justify-center rounded-full group-hover:bg-primary group-hover:text-black transition-colors duration-300">
                 🏃‍♂️

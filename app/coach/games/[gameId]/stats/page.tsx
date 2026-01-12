@@ -225,9 +225,9 @@ export default function GameStatsPage() {
                             {unassignedStudents.map(student => (
                                 <div key={student.id} className="p-3 bg-white/5 rounded border border-white/10 flex justify-between items-center group">
                                     <span className="text-white font-bold text-sm">{student.name}</span>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => handleAssignTeam(student.id, 'team_1')} className="px-2 py-1 text-xs bg-primary text-black font-bold hover:bg-white rounded">T1</button>
-                                        <button onClick={() => handleAssignTeam(student.id, 'team_2')} className="px-2 py-1 text-xs bg-white text-black font-bold hover:bg-gray-200 rounded">T2</button>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleAssignTeam(student.id, 'team_1')} className="px-3 py-2 text-xs bg-primary text-black font-bold hover:bg-white rounded transition-colors">T1</button>
+                                        <button onClick={() => handleAssignTeam(student.id, 'team_2')} className="px-3 py-2 text-xs bg-white text-black font-bold hover:bg-gray-200 rounded transition-colors">T2</button>
                                     </div>
                                 </div>
                             ))}
@@ -244,7 +244,7 @@ export default function GameStatsPage() {
                             {team1Students.map(student => (
                                 <div key={student.id} className="p-3 bg-primary/5 rounded border border-primary/20 flex justify-between items-center group">
                                     <span className="text-white font-bold text-sm">{student.name}</span>
-                                    <button onClick={() => handleAssignTeam(student.id, null)} className="text-xs text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                                    <button onClick={() => handleAssignTeam(student.id, null)} className="px-2 py-2 text-xs text-red-400 hover:text-red-300 transition-colors">Remove</button>
                                 </div>
                             ))}
                         </CardBody>
@@ -259,7 +259,7 @@ export default function GameStatsPage() {
                             {team2Students.map(student => (
                                 <div key={student.id} className="p-3 bg-white/5 rounded border border-white/20 flex justify-between items-center group">
                                     <span className="text-white font-bold text-sm">{student.name}</span>
-                                    <button onClick={() => handleAssignTeam(student.id, null)} className="text-xs text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                                    <button onClick={() => handleAssignTeam(student.id, null)} className="px-2 py-2 text-xs text-red-400 hover:text-red-300 transition-colors">Remove</button>
                                 </div>
                             ))}
                         </CardBody>

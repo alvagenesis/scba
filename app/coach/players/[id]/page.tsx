@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button'
 import { calculateAverageStats } from '@/lib/utils/stats'
 import type { Profile, GameStat } from '@/lib/types/database'
 import LoadingState from '@/components/ui/LoadingState'
+import { toPng } from 'html-to-image'
+import jsPDF from 'jspdf'
 
 export default function PlayerDetailPage() {
     const params = useParams()
@@ -86,22 +88,56 @@ export default function PlayerDetailPage() {
         setLoading(false)
     }
 
+    const handleDownloadPDF = async () => {
+        const input = document.getElementById('report-card-print')
+        if (!input) return
+
+        try {
+            const dataUrl = await toPng(input, {
+                quality: 0.95,
+                pixelRatio: 2,
+                backgroundColor: '#ffffff' // Ensure white background
+            })
+
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            })
+
+            const imgProps = pdf.getImageProperties(dataUrl)
+            const pdfWidth = pdf.internal.pageSize.getWidth()
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+
+            pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight)
+            pdf.save(`${student?.name.replace(/\s+/g, '_')}_Report.pdf`)
+        } catch (error) {
+            console.error('Error generating PDF:', error)
+            alert('Failed to generate PDF. Please try again.')
+        }
+    }
+
     if (loading) return <LoadingState message="Loading..." />
     if (!student) return null
 
     const avgStats = calculateAverageStats(gameStats || [])
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background relative">
             {profile && <Navbar profile={profile} />}
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <a href="/coach/players" className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs mb-4 inline-flex items-center gap-2 transition-colors">
-                        ← Back to Players
-                    </a>
-                    <h1 className="text-4xl font-bold text-white font-oswald uppercase tracking-wide">{student.name}</h1>
-                    <p className="text-gray-400 mt-2 uppercase tracking-widest text-xs">{student.email}</p>
+            <main id="player-dashboard" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="mb-8 flex justify-between items-start">
+                    <div>
+                        <a href="/coach/players" className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs mb-4 inline-flex items-center gap-2 transition-colors">
+                            ← Back to Players
+                        </a>
+                        <h1 className="text-4xl font-bold text-white font-oswald uppercase tracking-wide">{student.name}</h1>
+                        <p className="text-gray-400 mt-2 uppercase tracking-widest text-xs">{student.email}</p>
+                    </div>
+                    <Button onClick={handleDownloadPDF} className="flex items-center gap-2">
+                        <span>📄</span> Download PDF
+                    </Button>
                 </div>
 
                 {/* Stats Overview */}
@@ -261,6 +297,123 @@ export default function PlayerDetailPage() {
                     </Card>
                 )}
             </main>
+
+            {/* Hidden Report Card for PDF Generation */}
+            <div style={{ height: 0, overflow: 'hidden' }}>
+                <div id="report-card-print" className="w-[210mm] min-h-[297mm] bg-white text-black p-12">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-8 border-b-2 border-black pb-4">
+                        <div>
+                            <h1 className="text-4xl font-bold font-oswald uppercase tracking-wide">Batang SCBA</h1>
+                            <p className="text-sm font-bold uppercase tracking-widest mt-1 text-gray-600">Player Report Card</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm font-bold uppercase tracking-widest text-gray-600">Date Generated</p>
+                            <p className="text-lg font-bold">{new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+
+                    {/* Student Info */}
+                    <div className="mb-8">
+                        <h2 className="text-3xl font-bold font-oswald uppercase">{student.name}</h2>
+                        <p className="text-gray-600 uppercase tracking-widest text-sm">{student.email}</p>
+                    </div>
+
+                    {/* Stats Summary */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold uppercase border-b border-black mb-4 pb-1">Performance Average</h3>
+                        <div className="grid grid-cols-5 gap-4">
+                            <div className="border border-gray-300 p-4 text-center bg-gray-50">
+                                <div className="text-2xl font-bold text-black">{avgStats.points}</div>
+                                <div className="text-xs uppercase font-bold text-gray-500">Points</div>
+                            </div>
+                            <div className="border border-gray-300 p-4 text-center bg-gray-50">
+                                <div className="text-2xl font-bold text-black">{avgStats.rebounds}</div>
+                                <div className="text-xs uppercase font-bold text-gray-500">Rebounds</div>
+                            </div>
+                            <div className="border border-gray-300 p-4 text-center bg-gray-50">
+                                <div className="text-2xl font-bold text-black">{avgStats.assists}</div>
+                                <div className="text-xs uppercase font-bold text-gray-500">Assists</div>
+                            </div>
+                            <div className="border border-gray-300 p-4 text-center bg-gray-50">
+                                <div className="text-2xl font-bold text-black">{avgStats.steals}</div>
+                                <div className="text-xs uppercase font-bold text-gray-500">Steals</div>
+                            </div>
+                            <div className="border border-gray-300 p-4 text-center bg-gray-50">
+                                <div className="text-2xl font-bold text-black">{avgStats.blocks}</div>
+                                <div className="text-xs uppercase font-bold text-gray-500">Blocks</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Evaluations & Camps */}
+                    <div className="grid grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <h3 className="text-lg font-bold uppercase border-b border-black mb-4 pb-1">Evaluations</h3>
+                            {evaluations && evaluations.length > 0 ? (
+                                <div className="space-y-4">
+                                    {evaluations.slice(0, 3).map((evaluation: any) => (
+                                        <div key={evaluation.id} className="border border-gray-200 p-3 bg-gray-50 text-sm">
+                                            <div className="flex justify-between font-bold mb-1">
+                                                <span>{evaluation.training_sessions?.drill_topic}</span>
+                                                <span>Rating: {evaluation.rating}/10</span>
+                                            </div>
+                                            {evaluation.coach_notes && <p className="italic text-gray-600">"{evaluation.coach_notes}"</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 italic">No evaluations recorded.</p>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold uppercase border-b border-black mb-4 pb-1">Enrolled Camps</h3>
+                            {enrollments && enrollments.length > 0 ? (
+                                <ul className="list-disc list-inside text-sm">
+                                    {enrollments.map((e: any) => (
+                                        <li key={e.id} className="mb-1">
+                                            <span className="font-bold">{e.camps.name}</span> <span className="text-gray-600">({e.camps.location})</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-gray-500 italic">No camps enrolled.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Recent Games Table */}
+                    <div>
+                        <h3 className="text-lg font-bold uppercase border-b border-black mb-4 pb-1">Recent Games Log</h3>
+                        {gameStats && gameStats.length > 0 ? (
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-100 uppercase text-xs font-bold text-gray-700">
+                                    <tr>
+                                        <th className="px-3 py-2">Date</th>
+                                        <th className="px-3 py-2">Matchup</th>
+                                        <th className="px-3 py-2">PTS</th>
+                                        <th className="px-3 py-2">REB</th>
+                                        <th className="px-3 py-2">AST</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {gameStats.slice(0, 10).map((stat: any) => (
+                                        <tr key={stat.id}>
+                                            <td className="px-3 py-2">{new Date(stat.games.game_date).toLocaleDateString()}</td>
+                                            <td className="px-3 py-2">{stat.games.team_1_name} vs {stat.games.team_2_name}</td>
+                                            <td className="px-3 py-2 font-bold">{stat.points}</td>
+                                            <td className="px-3 py-2">{stat.rebounds}</td>
+                                            <td className="px-3 py-2">{stat.assists}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <p className="text-gray-500 italic">No games recorded.</p>
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }
