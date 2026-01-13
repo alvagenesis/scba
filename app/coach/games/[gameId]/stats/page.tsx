@@ -9,19 +9,27 @@ import Input from '@/components/ui/Input'
 import type { Profile, GameStat } from '@/lib/types/database'
 import Navbar from '@/components/layout/Navbar'
 import LoadingState from '@/components/ui/LoadingState'
+import { Scanner } from '@yudiel/react-qr-scanner'
 
 export default function GameStatsPage() {
     const params = useParams()
     const gameId = params.gameId as string
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [game, setGame] = useState<any>(null)
     const [students, setStudents] = useState<Profile[]>([])
+    const [extraStudents, setExtraStudents] = useState<Profile[]>([])
     const [stats, setStats] = useState<{ [key: string]: GameStat }>({})
     const [profile, setProfile] = useState<Profile | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState<string | null>(null)
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
     const [attendance, setAttendance] = useState<{ [key: string]: 'present' | 'absent' | 'excused' }>({})
+
+    // QR Scanner State
+    const [showScanner, setShowScanner] = useState(false)
+    const [processing, setProcessing] = useState(false)
+    const [lastScannedId, setLastScannedId] = useState<string | null>(null)
 
     const router = useRouter()
     const supabase = createClient()
@@ -99,6 +107,29 @@ export default function GameStatsPage() {
                 attendanceMap[record.student_id] = record.status
             })
             setAttendance(attendanceMap)
+
+            // Identify and fetch guest info for students in attendance not in enrollment
+            const studentIds = new Set(students.map(s => s.id)) // Note: 'students' in closure might be stale, use fetched data
+            // Better to use a separate check after getting both calls
+
+            // Re-derive from fresh data just to be safe in this async flow:
+            if (enrollments) {
+                const enrolledIds = new Set(enrollments.map((e: any) => e.profiles.id))
+                const extraIds = attendanceData
+                    .map(r => r.student_id)
+                    .filter(id => !enrolledIds.has(id))
+
+                if (extraIds.length > 0) {
+                    const { data: extras } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .in('id', extraIds)
+
+                    if (extras) {
+                        setExtraStudents(extras)
+                    }
+                }
+            }
         }
 
         setLoading(false)
@@ -142,6 +173,54 @@ export default function GameStatsPage() {
                 }
             }
         }
+    }
+
+    const handleScan = async (text: string) => {
+        if (!text || text === lastScannedId || processing) return
+
+        setProcessing(true)
+        setLastScannedId(text)
+
+        // 1. Check if already known (rostered or guest)
+        const knownStudent = students.find(s => s.id === text) || extraStudents.find(s => s.id === text)
+
+        if (knownStudent) {
+            if (attendance[knownStudent.id] !== 'present') {
+                try {
+                    await handleAttendanceToggle(knownStudent.id, attendance[knownStudent.id])
+                    setShowScanner(false)
+                } catch (err) {
+                    console.error(err)
+                }
+            } else {
+                setShowScanner(false)
+            }
+        } else {
+            // 2. Fetch from DB if not known locally
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', text)
+                .single()
+
+            if (profile) {
+                // Add to extra students
+                setExtraStudents(prev => [...prev, profile])
+
+                // Mark attendance
+                try {
+                    await handleAttendanceToggle(profile.id, attendance[profile.id])
+                    setShowScanner(false)
+                } catch (err) {
+                    console.error("Error toggling attendance for new guest", err)
+                }
+            } else {
+                console.warn("Student not found", text)
+            }
+        }
+
+        setProcessing(false)
+        setTimeout(() => setLastScannedId(null), 2000)
     }
 
     const handleAttendanceToggle = async (studentId: string, currentStatus: string | undefined) => {
@@ -262,21 +341,56 @@ export default function GameStatsPage() {
             {profile && <Navbar profile={profile} />}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <a href="/coach/games" className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs mb-4 inline-flex items-center gap-2 transition-colors">
-                        ← Back to Games
-                    </a>
-                    <h1 className="text-3xl font-bold text-white font-oswald uppercase tracking-wide">Game Roster & Stats</h1>
-                    <p className="text-primary font-bold mt-2 text-lg">
-                        {game.team_1_name} <span className="text-white mx-2">vs</span> {game.team_2_name}
-                    </p>
-                    <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">
-                        {game.camps?.name} • {new Date(game.game_date).toLocaleDateString()}
-                    </p>
+                <div className="mb-8 flex justify-between items-start">
+                    <div>
+                        <a href="/coach/games" className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs mb-4 inline-flex items-center gap-2 transition-colors">
+                            ← Back to Games
+                        </a>
+                        <h1 className="text-3xl font-bold text-white font-oswald uppercase tracking-wide">Game Roster & Stats</h1>
+                        <p className="text-primary font-bold mt-2 text-lg">
+                            {game.team_1_name} <span className="text-white mx-2">vs</span> {game.team_2_name}
+                        </p>
+                        <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">
+                            {game.camps?.name} • {new Date(game.game_date).toLocaleDateString()}
+                        </p>
+                    </div>
+                    <Button onClick={() => setShowScanner(true)} className="flex items-center gap-2">
+                        <span>📷</span> Scan QR Attendance
+                    </Button>
                 </div>
 
                 {/* Roster Assignment Section */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+                    {/* Guest / Extra Players */}
+                    <Card className="h-full border-yellow-500/20">
+                        <CardHeader className="bg-yellow-900/10">
+                            <h3 className="text-sm font-bold text-yellow-500 uppercase tracking-wider">Guest Players ({extraStudents.length})</h3>
+                        </CardHeader>
+                        <CardBody className="max-h-96 overflow-y-auto space-y-2">
+                            {extraStudents.map(student => (
+                                <div key={student.id}
+                                    className={`p-3 rounded border flex justify-between items-center cursor-pointer transition-all duration-200 ${selectedPlayerId === student.id ? 'bg-primary text-black border-primary' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    onClick={() => setSelectedPlayerId(student.id)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={attendance[student.id] === 'present'}
+                                            onChange={(e) => {
+                                                e.stopPropagation()
+                                                handleAttendanceToggle(student.id, attendance[student.id])
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-500 text-primary focus:ring-primary bg-transparent cursor-pointer"
+                                        />
+                                        <span className="font-bold text-sm">{student.name}</span>
+                                    </div>
+                                    <span className="text-xs font-mono opacity-50">Guest</span>
+                                </div>
+                            ))}
+                            {extraStudents.length === 0 && <p className="text-xs text-gray-500 text-center py-4">Scan QR to add guests</p>}
+                        </CardBody>
+                    </Card>
+
                     {/* Unassigned */}
                     <Card className="h-full">
                         <CardHeader className="bg-gray-900/50">
@@ -285,7 +399,15 @@ export default function GameStatsPage() {
                         <CardBody className="max-h-96 overflow-y-auto space-y-2">
                             {unassignedStudents.map(student => (
                                 <div key={student.id} className="p-3 bg-white/5 rounded border border-white/10 flex justify-between items-center group">
-                                    <span className="text-white font-bold text-sm">{student.name}</span>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={attendance[student.id] === 'present'}
+                                            onChange={() => handleAttendanceToggle(student.id, attendance[student.id])}
+                                            className="w-4 h-4 rounded border-gray-500 text-primary focus:ring-primary bg-transparent cursor-pointer"
+                                        />
+                                        <span className="text-white font-bold text-sm">{student.name}</span>
+                                    </div>
                                     <div className="flex gap-2">
                                         <button onClick={() => handleAssignTeam(student.id, 'team_1')} className="px-3 py-2 text-xs bg-primary text-black font-bold hover:bg-white rounded transition-colors">T1</button>
                                         <button onClick={() => handleAssignTeam(student.id, 'team_2')} className="px-3 py-2 text-xs bg-white text-black font-bold hover:bg-gray-200 rounded transition-colors">T2</button>
@@ -383,12 +505,11 @@ export default function GameStatsPage() {
                     </Card>
                 </div>
 
-                {/* Stats Entry Section */}
-                {/* Stats Entry Section */}
-                <div className="mt-8 min-h-[300px]">
+                {/* Stat Entry Section */}
+                <div className="mb-8">
                     {selectedPlayerId ? (
                         (() => {
-                            const selectedStudent = students.find(s => s.id === selectedPlayerId);
+                            const selectedStudent = [...students, ...extraStudents].find(s => s.id === selectedPlayerId);
                             if (!selectedStudent) return null;
                             const isTeam1 = stats[selectedStudent.id]?.team_choice === 'team_1';
                             return (
@@ -408,6 +529,35 @@ export default function GameStatsPage() {
                     )}
                 </div>
             </main>
+
+            {/* QR Scanner Modal */}
+            {showScanner && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+                    <div className="w-full max-w-md bg-white rounded-lg p-6 relative">
+                        <button
+                            onClick={() => setShowScanner(false)}
+                            className="absolute top-2 right-2 text-gray-500 hover:text-black font-bold text-xl"
+                        >
+                            ✕
+                        </button>
+                        <h2 className="text-xl font-bold mb-4 text-center font-oswald text-black">Scan Player QR Code</h2>
+                        <div className="rounded-lg overflow-hidden border-2 border-primary">
+                            <Scanner
+                                onScan={(result) => {
+                                    if (result && result.length > 0) {
+                                        handleScan(result[0].rawValue)
+                                    }
+                                }}
+                                onError={(err) => console.error(err)}
+                            />
+                        </div>
+                        <p className="text-center text-sm text-gray-500 mt-4">
+                            Point camera at student QR code. <br />
+                            <span className="text-xs">Automatically marks attendance and adds to guest list if not on roster.</span>
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
