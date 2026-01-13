@@ -378,9 +378,33 @@ export default function PlayerDetailPage() {
                     </div>
 
                     {/* Student Info */}
-                    <div className="mb-8">
-                        <h2 className="text-3xl font-bold font-oswald uppercase">{student.name}</h2>
-                        <p className="text-gray-600 uppercase tracking-widest text-sm">{student.email}</p>
+                    <div className="flex justify-between items-end mb-8">
+                        <div>
+                            <h2 className="text-3xl font-bold font-oswald uppercase">{student.name}</h2>
+                            <p className="text-gray-600 uppercase tracking-widest text-sm">{student.email}</p>
+                        </div>
+                    </div>
+
+                    {/* Attendance Summary - NEW SECTION */}
+                    <div className="mb-8 grid grid-cols-2 gap-4">
+                        <div className="border border-gray-300 p-4 bg-gray-50 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-bold text-gray-500 text-xs uppercase tracking-widest">Games Attended</h3>
+                                <p className="text-2xl font-bold">{attendanceStats.gamesAttended} <span className="text-gray-400 text-lg">/ {attendanceStats.totalGames}</span></p>
+                            </div>
+                            <div className="h-2 w-24 bg-gray-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-black" style={{ width: `${attendanceStats.totalGames > 0 ? (attendanceStats.gamesAttended / attendanceStats.totalGames) * 100 : 0}%` }}></div>
+                            </div>
+                        </div>
+                        <div className="border border-gray-300 p-4 bg-gray-50 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-bold text-gray-500 text-xs uppercase tracking-widest">Training Attended</h3>
+                                <p className="text-2xl font-bold">{attendanceStats.trainingAttended} <span className="text-gray-400 text-lg">/ {attendanceStats.totalTraining}</span></p>
+                            </div>
+                            <div className="h-2 w-24 bg-gray-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-black" style={{ width: `${attendanceStats.totalTraining > 0 ? (attendanceStats.trainingAttended / attendanceStats.totalTraining) * 100 : 0}%` }}></div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Stats Summary */}
@@ -418,11 +442,25 @@ export default function PlayerDetailPage() {
                                 <div className="space-y-4">
                                     {evaluations.slice(0, 3).map((evaluation: any) => (
                                         <div key={evaluation.id} className="border border-gray-200 p-3 bg-gray-50 text-sm">
-                                            <div className="flex justify-between font-bold mb-1">
+                                            <div className="flex justify-between font-bold mb-1 border-b border-gray-200 pb-1">
                                                 <span>{evaluation.training_sessions?.drill_topic}</span>
                                                 <span>Rating: {evaluation.rating}/10</span>
                                             </div>
-                                            {evaluation.coach_notes && <p className="italic text-gray-600">"{evaluation.coach_notes}"</p>}
+                                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                                {evaluation.strengths && (
+                                                    <div>
+                                                        <span className="text-[10px] uppercase font-bold text-green-700 block">Strengths</span>
+                                                        <span className="text-xs text-gray-700">{evaluation.strengths}</span>
+                                                    </div>
+                                                )}
+                                                {evaluation.weaknesses && (
+                                                    <div>
+                                                        <span className="text-[10px] uppercase font-bold text-red-700 block">Improvement Areas</span>
+                                                        <span className="text-xs text-gray-700">{evaluation.weaknesses}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {evaluation.coach_notes && <p className="italic text-gray-600 mt-2 text-xs border-t border-gray-100 pt-1">"{evaluation.coach_notes}"</p>}
                                         </div>
                                     ))}
                                 </div>
@@ -455,19 +493,23 @@ export default function PlayerDetailPage() {
                                     <tr>
                                         <th className="px-3 py-2">Date</th>
                                         <th className="px-3 py-2">Matchup</th>
-                                        <th className="px-3 py-2">PTS</th>
-                                        <th className="px-3 py-2">REB</th>
-                                        <th className="px-3 py-2">AST</th>
+                                        <th className="px-3 py-2 text-center">PTS</th>
+                                        <th className="px-3 py-2 text-center">REB</th>
+                                        <th className="px-3 py-2 text-center">AST</th>
+                                        <th className="px-3 py-2 text-center">STL</th>
+                                        <th className="px-3 py-2 text-center">BLK</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
                                     {gameStats.slice(0, 10).map((stat: any) => (
                                         <tr key={stat.id}>
                                             <td className="px-3 py-2">{new Date(stat.games.game_date).toLocaleDateString()}</td>
-                                            <td className="px-3 py-2">{stat.games.team_1_name} vs {stat.games.team_2_name}</td>
-                                            <td className="px-3 py-2 font-bold">{stat.points}</td>
-                                            <td className="px-3 py-2">{stat.rebounds}</td>
-                                            <td className="px-3 py-2">{stat.assists}</td>
+                                            <td className="px-3 py-2 w-1/3">{stat.games.team_1_name} vs {stat.games.team_2_name}</td>
+                                            <td className="px-3 py-2 font-bold text-center">{stat.points}</td>
+                                            <td className="px-3 py-2 text-center">{stat.rebounds}</td>
+                                            <td className="px-3 py-2 text-center">{stat.assists}</td>
+                                            <td className="px-3 py-2 text-center">{stat.steals}</td>
+                                            <td className="px-3 py-2 text-center">{stat.blocks}</td>
                                         </tr>
                                     ))}
                                 </tbody>
