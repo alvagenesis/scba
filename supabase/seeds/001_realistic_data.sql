@@ -127,34 +127,46 @@ BEGIN
         v_team1_name := v_colors[1 + floor(random() * array_length(v_colors, 1))::int] || ' ' || v_mascots[1 + floor(random() * array_length(v_mascots, 1))::int];
         v_team2_name := v_colors[1 + floor(random() * array_length(v_colors, 1))::int] || ' ' || v_mascots[1 + floor(random() * array_length(v_mascots, 1))::int];
         
-        -- Fallback if same name
-        IF v_team1_name = v_team2_name THEN
-             v_team2_name := 'Challengers';
-        END IF;
+        IF v_team1_name = v_team2_name THEN v_team2_name := 'Challengers'; END IF;
 
         INSERT INTO public.games (camp_id, game_date, team_1_name, team_2_name)
-        VALUES (v_rookie_camp_id, CURRENT_DATE + i, v_team1_name, v_team2_name)
+        VALUES (v_rookie_camp_id, CURRENT_DATE - (20 - i), v_team1_name, v_team2_name) -- Past dates
         RETURNING id INTO v_game_id;
 
-        -- Assign Players (15 per team)
-        -- Get 30 random enrolled students
-        FOR v_student_id IN 
-            SELECT student_id FROM public.enrollments WHERE camp_id = v_rookie_camp_id ORDER BY random() LIMIT 30
-        LOOP
-            -- Check current counts (approximation inside loop)
-            SELECT COUNT(*) INTO v_team1_count FROM public.game_stats WHERE game_id = v_game_id AND team_choice = 'team_1';
-            
-            IF v_team1_count < 15 THEN
-                INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
-                VALUES (v_game_id, v_student_id, 'team_1', floor(random()*20)::int, floor(random()*10)::int, floor(random()*5)::int, floor(random()*3)::int, floor(random()*2)::int);
+        -- Iterate ALL enrolled students for attendance
+        FOR v_student_id IN SELECT student_id FROM public.enrollments WHERE camp_id = v_rookie_camp_id LOOP
+            -- 80% chance of attending
+            IF random() < 0.8 THEN
+                -- Present
+                INSERT INTO public.attendance (student_id, game_id, status) VALUES (v_student_id, v_game_id, 'present');
+                
+                -- Check if teams need players (max 30 total)
+                SELECT COUNT(*) INTO v_team1_count FROM public.game_stats WHERE game_id = v_game_id;
+                
+                IF v_team1_count < 30 THEN
+                    -- Assign Team & Stats
+                    SELECT COUNT(*) INTO v_team1_count FROM public.game_stats WHERE game_id = v_game_id AND team_choice = 'team_1';
+                    
+                    IF v_team1_count < 15 THEN
+                        INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
+                        VALUES (v_game_id, v_student_id, 'team_1', floor(random()*20)::int, floor(random()*10)::int, floor(random()*5)::int, floor(random()*3)::int, floor(random()*2)::int);
+                    ELSE
+                        INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
+                        VALUES (v_game_id, v_student_id, 'team_2', floor(random()*20)::int, floor(random()*10)::int, floor(random()*5)::int, floor(random()*3)::int, floor(random()*2)::int);
+                    END IF;
+                END IF;
             ELSE
-                INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
-                VALUES (v_game_id, v_student_id, 'team_2', floor(random()*20)::int, floor(random()*10)::int, floor(random()*5)::int, floor(random()*3)::int, floor(random()*2)::int);
+                -- Absent or Excused
+                IF random() < 0.8 THEN
+                    INSERT INTO public.attendance (student_id, game_id, status) VALUES (v_student_id, v_game_id, 'absent');
+                ELSE
+                    INSERT INTO public.attendance (student_id, game_id, status) VALUES (v_student_id, v_game_id, 'excused');
+                END IF;
             END IF;
         END LOOP;
     END LOOP;
 
-    -- Juniors Games (Same logic)
+    -- Juniors Games
     FOR i IN 1..10 LOOP
         v_team1_name := v_colors[1 + floor(random() * array_length(v_colors, 1))::int] || ' ' || v_mascots[1 + floor(random() * array_length(v_mascots, 1))::int];
         v_team2_name := v_colors[1 + floor(random() * array_length(v_colors, 1))::int] || ' ' || v_mascots[1 + floor(random() * array_length(v_mascots, 1))::int];
@@ -162,20 +174,32 @@ BEGIN
         IF v_team1_name = v_team2_name THEN v_team2_name := 'Challengers'; END IF;
 
         INSERT INTO public.games (camp_id, game_date, team_1_name, team_2_name)
-        VALUES (v_junior_camp_id, CURRENT_DATE + i, v_team1_name, v_team2_name)
+        VALUES (v_junior_camp_id, CURRENT_DATE - (20 - i), v_team1_name, v_team2_name)
         RETURNING id INTO v_game_id;
 
-        FOR v_student_id IN 
-            SELECT student_id FROM public.enrollments WHERE camp_id = v_junior_camp_id ORDER BY random() LIMIT 30
-        LOOP
-            SELECT COUNT(*) INTO v_team1_count FROM public.game_stats WHERE game_id = v_game_id AND team_choice = 'team_1';
-            
-            IF v_team1_count < 15 THEN
-                 INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
-                VALUES (v_game_id, v_student_id, 'team_1', floor(random()*25)::int, floor(random()*12)::int, floor(random()*8)::int, floor(random()*5)::int, floor(random()*3)::int);
+        FOR v_student_id IN SELECT student_id FROM public.enrollments WHERE camp_id = v_junior_camp_id LOOP
+            IF random() < 0.85 THEN -- Higher attendance for juniors
+                INSERT INTO public.attendance (student_id, game_id, status) VALUES (v_student_id, v_game_id, 'present');
+                
+                SELECT COUNT(*) INTO v_team1_count FROM public.game_stats WHERE game_id = v_game_id;
+                
+                IF v_team1_count < 30 THEN
+                    SELECT COUNT(*) INTO v_team1_count FROM public.game_stats WHERE game_id = v_game_id AND team_choice = 'team_1';
+                    
+                    IF v_team1_count < 15 THEN
+                        INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
+                        VALUES (v_game_id, v_student_id, 'team_1', floor(random()*25)::int, floor(random()*12)::int, floor(random()*8)::int, floor(random()*5)::int, floor(random()*3)::int);
+                    ELSE
+                        INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
+                        VALUES (v_game_id, v_student_id, 'team_2', floor(random()*25)::int, floor(random()*12)::int, floor(random()*8)::int, floor(random()*5)::int, floor(random()*3)::int);
+                    END IF;
+                END IF;
             ELSE
-                 INSERT INTO public.game_stats (game_id, student_id, team_choice, points, rebounds, assists, steals, blocks)
-                VALUES (v_game_id, v_student_id, 'team_2', floor(random()*25)::int, floor(random()*12)::int, floor(random()*8)::int, floor(random()*5)::int, floor(random()*3)::int);
+                 IF random() < 0.8 THEN
+                    INSERT INTO public.attendance (student_id, game_id, status) VALUES (v_student_id, v_game_id, 'absent');
+                ELSE
+                    INSERT INTO public.attendance (student_id, game_id, status) VALUES (v_student_id, v_game_id, 'excused');
+                END IF;
             END IF;
         END LOOP;
     END LOOP;
@@ -184,13 +208,57 @@ BEGIN
     -- Rookies
     FOR i IN 1..20 LOOP
         INSERT INTO public.training_sessions (camp_id, session_date, drill_topic, notes)
-        VALUES (v_rookie_camp_id, CURRENT_DATE + i, 'Drill Topic ' || i, 'Focus on fundamentals');
+        VALUES (v_rookie_camp_id, CURRENT_DATE - (40 - i), 'Drill Topic ' || i, 'Focus on fundamentals')
+        RETURNING id INTO v_session_id;
+
+        -- Attendance & Evaluations
+        FOR v_student_id IN SELECT student_id FROM public.enrollments WHERE camp_id = v_rookie_camp_id LOOP
+             IF random() < 0.9 THEN -- 90% attendance
+                INSERT INTO public.attendance (student_id, training_session_id, status) VALUES (v_student_id, v_session_id, 'present');
+                
+                -- Random evaluation
+                IF random() < 0.7 THEN
+                    INSERT INTO public.evaluations (training_session_id, student_id, rating, strengths, weaknesses, coach_notes)
+                    VALUES (
+                        v_session_id, 
+                        v_student_id, 
+                        floor(random() * 5 + 6)::int, -- Rating 6-10
+                        'Great effort, good listening',
+                        'Need to work on off-hand dribbling',
+                        'Shows promise'
+                    );
+                END IF;
+             ELSE
+                 INSERT INTO public.attendance (student_id, training_session_id, status) VALUES (v_student_id, v_session_id, 'absent');
+             END IF;
+        END LOOP;
     END LOOP;
 
     -- Juniors
     FOR i IN 1..20 LOOP
         INSERT INTO public.training_sessions (camp_id, session_date, drill_topic, notes)
-        VALUES (v_junior_camp_id, CURRENT_DATE + i, 'Advanced Drill Topic ' || i, 'Focus on strategy');
+        VALUES (v_junior_camp_id, CURRENT_DATE - (40 - i), 'Advanced Drill Topic ' || i, 'Focus on strategy')
+        RETURNING id INTO v_session_id;
+
+        FOR v_student_id IN SELECT student_id FROM public.enrollments WHERE camp_id = v_junior_camp_id LOOP
+             IF random() < 0.85 THEN
+                INSERT INTO public.attendance (student_id, training_session_id, status) VALUES (v_student_id, v_session_id, 'present');
+                
+                IF random() < 0.7 THEN
+                    INSERT INTO public.evaluations (training_session_id, student_id, rating, strengths, weaknesses, coach_notes)
+                    VALUES (
+                        v_session_id, 
+                        v_student_id, 
+                        floor(random() * 4 + 7)::int, -- Rating 7-10
+                        'Excellent court vision',
+                        'Defense transition',
+                        'Team leader'
+                    );
+                END IF;
+             ELSE
+                 INSERT INTO public.attendance (student_id, training_session_id, status) VALUES (v_student_id, v_session_id, 'absent');
+             END IF;
+        END LOOP;
     END LOOP;
     
 END $$;

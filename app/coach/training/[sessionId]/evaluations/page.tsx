@@ -9,11 +9,13 @@ import Input from '@/components/ui/Input'
 import type { Profile, Evaluation } from '@/lib/types/database'
 import Navbar from '@/components/layout/Navbar'
 import LoadingState from '@/components/ui/LoadingState'
+import { Scanner } from '@yudiel/react-qr-scanner'
 
 export default function EvaluationsPage() {
     const params = useParams()
     const sessionId = params.sessionId as string
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [session, setSession] = useState<any>(null)
     const [students, setStudents] = useState<Profile[]>([])
     const [evaluations, setEvaluations] = useState<{ [key: string]: Evaluation }>({})
@@ -21,88 +23,90 @@ export default function EvaluationsPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState<string | null>(null)
     const [attendance, setAttendance] = useState<{ [key: string]: 'present' | 'absent' | 'excused' }>({})
+    const [showScanner, setShowScanner] = useState(false)
+    const [lastScannedId, setLastScannedId] = useState<string | null>(null)
 
     const router = useRouter()
     const supabase = createClient()
 
     useEffect(() => {
+        const loadData = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (!user) {
+                router.push('/auth')
+                return
+            }
+
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single()
+
+            setProfile(profileData)
+
+            // Get session details with camp
+            const { data: sessionData } = await supabase
+                .from('training_sessions')
+                .select('*, camps(*)')
+                .eq('id', sessionId)
+                .single()
+
+            if (!sessionData) {
+                router.push('/coach/training')
+                return
+            }
+
+            setSession(sessionData)
+
+            // Get students enrolled in this camp
+            const { data: enrollments } = await supabase
+                .from('enrollments')
+                .select('profiles(*)')
+                .eq('camp_id', sessionData.camp_id)
+
+            if (enrollments) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const studentProfiles = enrollments.map((e: any) => e.profiles).filter(Boolean)
+                setStudents(studentProfiles)
+            }
+
+            // Get existing evaluations for this session
+            const { data: evaluationsData } = await supabase
+                .from('evaluations')
+                .select('*')
+                .eq('training_session_id', sessionId)
+
+            if (evaluationsData) {
+                const evaluationsMap: { [key: string]: Evaluation } = {}
+                evaluationsData.forEach((evaluation) => {
+                    evaluationsMap[evaluation.student_id] = evaluation
+                })
+                setEvaluations(evaluationsMap)
+            }
+
+            // Get attendance
+            const { data: attendanceData } = await supabase
+                .from('attendance')
+                .select('*')
+                .eq('training_session_id', sessionId)
+
+            if (attendanceData) {
+                const attendanceMap: { [key: string]: 'present' | 'absent' | 'excused' } = {}
+                attendanceData.forEach((record) => {
+                    attendanceMap[record.student_id] = record.status
+                })
+                setAttendance(attendanceMap)
+            }
+
+            setLoading(false)
+        }
+
         if (sessionId) {
             loadData()
         }
-    }, [sessionId])
-
-    const loadData = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) {
-            router.push('/auth')
-            return
-        }
-
-        const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single()
-
-        setProfile(profileData)
-
-        // Get session details with camp
-        const { data: sessionData } = await supabase
-            .from('training_sessions')
-            .select('*, camps(*)')
-            .eq('id', sessionId)
-            .single()
-
-        if (!sessionData) {
-            router.push('/coach/training')
-            return
-        }
-
-        setSession(sessionData)
-
-        // Get students enrolled in this camp
-        const { data: enrollments } = await supabase
-            .from('enrollments')
-            .select('profiles(*)')
-            .eq('camp_id', sessionData.camp_id)
-
-        if (enrollments) {
-            const studentProfiles = enrollments.map((e: any) => e.profiles).filter(Boolean)
-            setStudents(studentProfiles)
-        }
-
-        // Get existing evaluations for this session
-        const { data: evaluationsData } = await supabase
-            .from('evaluations')
-            .select('*')
-            .eq('training_session_id', sessionId)
-
-        if (evaluationsData) {
-            const evaluationsMap: { [key: string]: Evaluation } = {}
-            evaluationsData.forEach((evaluation) => {
-                evaluationsMap[evaluation.student_id] = evaluation
-            })
-            setEvaluations(evaluationsMap)
-            setEvaluations(evaluationsMap)
-        }
-
-        // Get attendance
-        const { data: attendanceData } = await supabase
-            .from('attendance')
-            .select('*')
-            .eq('training_session_id', sessionId)
-
-        if (attendanceData) {
-            const attendanceMap: { [key: string]: 'present' | 'absent' | 'excused' } = {}
-            attendanceData.forEach((record) => {
-                attendanceMap[record.student_id] = record.status
-            })
-            setAttendance(attendanceMap)
-        }
-
-        setLoading(false)
-    }
+    }, [sessionId, supabase, router])
 
     const handleSaveEvaluation = async (studentId: string, evaluationData: Partial<Evaluation>) => {
         setSaving(studentId)
@@ -149,10 +153,10 @@ export default function EvaluationsPage() {
         const newStatus = currentStatus === 'present' ? 'absent' : 'present'
 
         // Optimistic update
-        setAttendance({
-            ...attendance,
+        setAttendance(prev => ({
+            ...prev,
             [studentId]: newStatus
-        })
+        }))
 
         // Check if record exists
         const { data: existingRecord } = await supabase
@@ -183,10 +187,10 @@ export default function EvaluationsPage() {
         if (error) {
             // Revert on error
             console.error('Error updating attendance:', error)
-            setAttendance({
-                ...attendance,
+            setAttendance(prev => ({
+                ...prev,
                 [studentId]: currentStatus as 'present' | 'absent' | 'excused'
-            })
+            }))
         }
     }
 
@@ -208,6 +212,34 @@ export default function EvaluationsPage() {
         }
     }
 
+    const handleScan = (text: string) => {
+        if (!text || text === lastScannedId) return
+
+        // Assume text is the student ID
+        const student = students.find(s => s.id === text)
+
+        if (student) {
+            // Only update if not already present
+            if (attendance[student.id] !== 'present') {
+                handleAttendanceToggle(student.id, attendance[student.id])
+                alert(`Marked ${student.name} as Present!`)
+            } else {
+                alert(`${student.name} is already marked Present.`)
+            }
+            setLastScannedId(text)
+
+            // Reset last scanned after delay to allow re-scanning if needed
+            setTimeout(() => setLastScannedId(null), 3000)
+        } else {
+            // Could be invalid QR or student not in this camp
+            console.warn('Student not found for ID:', text)
+        }
+    }
+
+    const handleError = (error: unknown) => {
+        console.error('QR Scan Error:', error)
+    }
+
     if (loading) {
         return <LoadingState message="Loading..." />
     }
@@ -217,21 +249,26 @@ export default function EvaluationsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background relative">
             {profile && <Navbar profile={profile} />}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <a href="/coach/training" className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs mb-4 inline-flex items-center gap-2 transition-colors">
-                        ← Back to Training Sessions
-                    </a>
-                    <h1 className="text-3xl font-bold text-white font-oswald uppercase tracking-wide">Add Player Evaluations</h1>
-                    <p className="text-primary font-bold mt-2 text-lg">
-                        {session.camps?.name} <span className="text-white mx-2">•</span> {session.drill_topic}
-                    </p>
-                    <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">
-                        {new Date(session.session_date).toLocaleDateString()}
-                    </p>
+                <div className="mb-8 flex justify-between items-start">
+                    <div>
+                        <a href="/coach/training" className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs mb-4 inline-flex items-center gap-2 transition-colors">
+                            ← Back to Training Sessions
+                        </a>
+                        <h1 className="text-3xl font-bold text-white font-oswald uppercase tracking-wide">Add Player Evaluations</h1>
+                        <p className="text-primary font-bold mt-2 text-lg">
+                            {session.camps?.name} <span className="text-white mx-2">•</span> {session.drill_topic}
+                        </p>
+                        <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">
+                            {new Date(session.session_date).toLocaleDateString()}
+                        </p>
+                    </div>
+                    <Button onClick={() => setShowScanner(true)} className="flex items-center gap-2">
+                        <span>📷</span> Scan QR Attendance
+                    </Button>
                 </div>
 
                 {students.length === 0 ? (
@@ -367,6 +404,34 @@ export default function EvaluationsPage() {
                     </div>
                 )}
             </main>
+
+            {/* QR Scanner Modal */}
+            {showScanner && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+                    <div className="w-full max-w-md bg-white rounded-lg p-6 relative">
+                        <button
+                            onClick={() => setShowScanner(false)}
+                            className="absolute top-2 right-2 text-gray-500 hover:text-black font-bold text-xl"
+                        >
+                            ✕
+                        </button>
+                        <h2 className="text-xl font-bold mb-4 text-center font-oswald text-black">Scan Student QR Code</h2>
+                        <div className="rounded-lg overflow-hidden border-2 border-primary">
+                            <Scanner
+                                onScan={(result) => {
+                                    if (result && result.length > 0) {
+                                        handleScan(result[0].rawValue)
+                                    }
+                                }}
+                                onError={handleError}
+                            />
+                        </div>
+                        <p className="text-center text-sm text-gray-500 mt-4">
+                            Point camera at student QR code to mark attendance.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
