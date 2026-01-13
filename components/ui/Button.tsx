@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes, forwardRef } from 'react'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
-    size?: 'sm' | 'md' | 'lg'
+    size?: 'sm' | 'md' | 'lg' | 'icon'
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -19,7 +19,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         const sizes = {
             sm: 'px-4 py-2 text-xs',
             md: 'px-6 py-3 text-sm',
-            lg: 'px-8 py-4 text-base'
+            lg: 'px-8 py-4 text-base',
+            icon: 'w-9 h-9 p-0 flex items-center justify-center'
         }
 
         return (

@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input'
 import type { Game, Camp, Profile } from '@/lib/types/database'
 import Navbar from '@/components/layout/Navbar'
 import LoadingState from '@/components/ui/LoadingState'
+import { BarChart2, Pencil, Trash2 } from 'lucide-react'
 
 export default function GamesPage() {
     const [games, setGames] = useState<any[]>([])
@@ -241,13 +242,32 @@ export default function GamesPage() {
                                         </div>
                                         <div className="flex gap-2">
                                             <a href={`/coach/games/${game.id}/stats`}>
-                                                <Button size="sm" className="border border-gray-600 hover:border-primary" variant="ghost">Add/View Stats</Button>
+                                                <Button
+                                                    size="icon"
+                                                    className="border border-gray-600 text-gray-400 hover:text-primary hover:border-primary transition-colors"
+                                                    variant="ghost"
+                                                    title="Add/View Stats"
+                                                >
+                                                    <BarChart2 className="w-5 h-5" />
+                                                </Button>
                                             </a>
-                                            <Button size="sm" variant="ghost" className="border border-gray-600 hover:text-primary hover:border-primary" onClick={() => handleEdit(game)}>
-                                                Edit
+                                            <Button
+                                                size="icon"
+                                                className="border border-gray-600 text-gray-400 hover:text-primary hover:border-primary transition-colors"
+                                                variant="ghost"
+                                                onClick={() => handleEdit(game)}
+                                                title="Edit"
+                                            >
+                                                <Pencil className="w-5 h-5" />
                                             </Button>
-                                            <Button size="sm" variant="danger" onClick={() => handleDelete(game.id)}>
-                                                Delete
+                                            <Button
+                                                size="icon"
+                                                className="border-red-900/50 text-red-500 hover:bg-red-900/20 hover:text-red-400 transition-colors"
+                                                variant="danger"
+                                                onClick={() => handleDelete(game.id)}
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
                                             </Button>
                                         </div>
                                     </div>

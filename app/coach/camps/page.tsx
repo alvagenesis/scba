@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input'
 import type { Camp, Profile } from '@/lib/types/database'
 import Navbar from '@/components/layout/Navbar'
 import LoadingState from '@/components/ui/LoadingState'
+import { Pencil, Trash2 } from 'lucide-react'
 
 export default function CampsManagementPage() {
     const [camps, setCamps] = useState<Camp[]>([])
@@ -255,17 +256,24 @@ export default function CampsManagementPage() {
                                     </div>
                                 </CardBody>
                                 <CardFooter>
-                                    <div className="flex gap-2">
-                                        <Button className="flex-1 border border-gray-600 hover:border-primary" size="sm" variant="ghost" onClick={() => handleEdit(camp)}>
-                                            Edit
+                                    <div className="flex gap-2 justify-end w-full">
+                                        <Button
+                                            className="border border-gray-600 text-gray-400 hover:text-primary hover:border-primary transition-colors"
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleEdit(camp)}
+                                            title="Edit Camp"
+                                        >
+                                            <Pencil className="w-5 h-5" />
                                         </Button>
                                         <Button
                                             variant="danger"
-                                            size="sm"
-                                            className="flex-1"
+                                            size="icon"
+                                            className="border-red-900/50 text-red-500 hover:bg-red-900/20 hover:text-red-400 transition-colors"
                                             onClick={() => handleDelete(camp.id)}
+                                            title="Delete Camp"
                                         >
-                                            Delete
+                                            <Trash2 className="w-5 h-5" />
                                         </Button>
                                     </div>
                                 </CardFooter>

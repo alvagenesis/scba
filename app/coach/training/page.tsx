@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input'
 import type { TrainingSession, Camp, Profile } from '@/lib/types/database'
 import Navbar from '@/components/layout/Navbar'
 import LoadingState from '@/components/ui/LoadingState'
+import { Pencil, Trash2, ClipboardList } from 'lucide-react'
 
 export default function TrainingPage() {
     const [sessions, setSessions] = useState<any[]>([])
@@ -245,13 +246,32 @@ export default function TrainingPage() {
                                         </div>
                                         <div className="flex gap-2">
                                             <a href={`/coach/training/${session.id}/evaluations`}>
-                                                <Button size="sm" className="border border-gray-600 hover:border-primary" variant="ghost">Add/View Evaluations</Button>
+                                                <Button
+                                                    size="icon"
+                                                    className="border border-gray-600 text-gray-400 hover:text-primary hover:border-primary transition-colors"
+                                                    variant="ghost"
+                                                    title="Add/View Evaluations"
+                                                >
+                                                    <ClipboardList className="w-5 h-5" />
+                                                </Button>
                                             </a>
-                                            <Button size="sm" variant="ghost" className="border border-gray-600 hover:text-primary hover:border-primary" onClick={() => handleEdit(session)}>
-                                                Edit
+                                            <Button
+                                                size="icon"
+                                                className="border border-gray-600 text-gray-400 hover:text-primary hover:border-primary transition-colors"
+                                                variant="ghost"
+                                                onClick={() => handleEdit(session)}
+                                                title="Edit Session"
+                                            >
+                                                <Pencil className="w-5 h-5" />
                                             </Button>
-                                            <Button size="sm" variant="danger" onClick={() => handleDelete(session.id)}>
-                                                Delete
+                                            <Button
+                                                size="icon"
+                                                className="border-red-900/50 text-red-500 hover:bg-red-900/20 hover:text-red-400 transition-colors"
+                                                variant="danger"
+                                                onClick={() => handleDelete(session.id)}
+                                                title="Delete Session"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
                                             </Button>
                                         </div>
                                     </div>
