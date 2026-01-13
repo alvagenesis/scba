@@ -70,13 +70,22 @@ export default function Navbar({ profile }: NavbarProps) {
                     </Link>
                 </>
             ) : (
-                <Link
-                    href="/student/camps"
-                    className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs transition-colors py-2 md:py-0"
-                    onClick={() => setIsMenuOpen(false)}
-                >
-                    Browse Camps
-                </Link>
+                <>
+                    <Link
+                        href="/student/camps"
+                        className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs transition-colors py-2 md:py-0"
+                        onClick={() => setIsMenuOpen(false)}
+                    >
+                        Browse Camps
+                    </Link>
+                    <Link
+                        href="/student/profile"
+                        className="text-gray-400 hover:text-primary font-bold uppercase tracking-widest text-xs transition-colors py-2 md:py-0"
+                        onClick={() => setIsMenuOpen(false)}
+                    >
+                        Personal Details
+                    </Link>
+                </>
             )}
         </>
     )

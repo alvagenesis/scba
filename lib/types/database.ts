@@ -5,6 +5,9 @@ export interface Profile {
     name: string
     role: UserRole
     email?: string
+    address?: string
+    mobile_no?: string
+    emergency_contact_no?: string
     created_at: string
     updated_at: string
 }
