@@ -21,6 +21,7 @@ export default function GameStatsPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState<string | null>(null)
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
+    const [attendance, setAttendance] = useState<{ [key: string]: 'present' | 'absent' | 'excused' }>({})
 
     const router = useRouter()
     const supabase = createClient()
@@ -86,6 +87,20 @@ export default function GameStatsPage() {
             setStats(statsMap)
         }
 
+        // Get attendance
+        const { data: attendanceData } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('game_id', gameId)
+
+        if (attendanceData) {
+            const attendanceMap: { [key: string]: 'present' | 'absent' | 'excused' } = {}
+            attendanceData.forEach((record) => {
+                attendanceMap[record.student_id] = record.status
+            })
+            setAttendance(attendanceMap)
+        }
+
         setLoading(false)
     }
 
@@ -126,6 +141,51 @@ export default function GameStatsPage() {
                     })
                 }
             }
+        }
+    }
+
+    const handleAttendanceToggle = async (studentId: string, currentStatus: string | undefined) => {
+        const newStatus = currentStatus === 'present' ? 'absent' : 'present'
+
+        // Optimistic update
+        setAttendance({
+            ...attendance,
+            [studentId]: newStatus
+        })
+
+        // Check if record exists
+        const { data: existingRecord } = await supabase
+            .from('attendance')
+            .select('id')
+            .eq('game_id', gameId)
+            .eq('student_id', studentId)
+            .single()
+
+        let error
+        if (existingRecord) {
+            const result = await supabase
+                .from('attendance')
+                .update({ status: newStatus })
+                .eq('id', existingRecord.id)
+            error = result.error
+        } else {
+            const result = await supabase
+                .from('attendance')
+                .insert({
+                    game_id: gameId,
+                    student_id: studentId,
+                    status: newStatus
+                })
+            error = result.error
+        }
+
+        if (error) {
+            // Revert on error
+            console.error('Error updating attendance:', error)
+            setAttendance({
+                ...attendance,
+                [studentId]: currentStatus as 'present' | 'absent' | 'excused'
+            })
         }
     }
 
@@ -245,13 +305,29 @@ export default function GameStatsPage() {
                             {team1Students.map(student => (
                                 <div
                                     key={student.id}
-                                    onClick={() => setSelectedPlayerId(student.id)}
-                                    className={`p-3 rounded border flex justify-between items-center group cursor-pointer transition-all duration-200 ${selectedPlayerId === student.id
+                                    onClick={() => attendance[student.id] === 'present' && setSelectedPlayerId(student.id)}
+                                    className={`p-3 rounded border flex justify-between items-center group transition-all duration-200 ${selectedPlayerId === student.id
                                         ? 'bg-primary text-black border-primary shadow-[0_0_15px_rgba(255,215,0,0.3)]'
-                                        : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
+                                        : attendance[student.id] === 'present'
+                                            ? 'bg-primary/5 border-primary/20 hover:bg-primary/10 cursor-pointer'
+                                            : 'bg-gray-900/50 border-gray-800 opacity-60 cursor-not-allowed'
                                         }`}
                                 >
-                                    <span className={`font-bold text-sm ${selectedPlayerId === student.id ? 'text-black' : 'text-white'}`}>{student.name}</span>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={attendance[student.id] === 'present'}
+                                            onChange={(e) => {
+                                                e.stopPropagation()
+                                                handleAttendanceToggle(student.id, attendance[student.id])
+                                                if (selectedPlayerId === student.id) setSelectedPlayerId(null)
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-500 text-primary focus:ring-primary bg-transparent"
+                                        />
+                                        <span className={`font-bold text-sm ${selectedPlayerId === student.id ? 'text-black' : 'text-white'}`}>
+                                            {student.name}
+                                        </span>
+                                    </div>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); handleAssignTeam(student.id, null); if (selectedPlayerId === student.id) setSelectedPlayerId(null); }}
                                         className={`px-2 py-2 text-xs transition-colors ${selectedPlayerId === student.id ? 'text-black/60 hover:text-black' : 'text-red-400 hover:text-red-300'}`}
@@ -272,13 +348,29 @@ export default function GameStatsPage() {
                             {team2Students.map(student => (
                                 <div
                                     key={student.id}
-                                    onClick={() => setSelectedPlayerId(student.id)}
-                                    className={`p-3 rounded border flex justify-between items-center group cursor-pointer transition-all duration-200 ${selectedPlayerId === student.id
+                                    onClick={() => attendance[student.id] === 'present' && setSelectedPlayerId(student.id)}
+                                    className={`p-3 rounded border flex justify-between items-center group transition-all duration-200 ${selectedPlayerId === student.id
                                         ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]'
-                                        : 'bg-white/5 border-white/20 hover:bg-white/10'
+                                        : attendance[student.id] === 'present'
+                                            ? 'bg-white/5 border-white/20 hover:bg-white/10 cursor-pointer'
+                                            : 'bg-gray-900/50 border-gray-800 opacity-60 cursor-not-allowed'
                                         }`}
                                 >
-                                    <span className={`font-bold text-sm ${selectedPlayerId === student.id ? 'text-black' : 'text-white'}`}>{student.name}</span>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={attendance[student.id] === 'present'}
+                                            onChange={(e) => {
+                                                e.stopPropagation()
+                                                handleAttendanceToggle(student.id, attendance[student.id])
+                                                if (selectedPlayerId === student.id) setSelectedPlayerId(null)
+                                            }}
+                                            className="w-4 h-4 rounded border-gray-500 text-white focus:ring-white bg-transparent"
+                                        />
+                                        <span className={`font-bold text-sm ${selectedPlayerId === student.id ? 'text-black' : 'text-white'}`}>
+                                            {student.name}
+                                        </span>
+                                    </div>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); handleAssignTeam(student.id, null); if (selectedPlayerId === student.id) setSelectedPlayerId(null); }}
                                         className={`px-2 py-2 text-xs transition-colors ${selectedPlayerId === student.id ? 'text-black/60 hover:text-black' : 'text-red-400 hover:text-red-300'}`}

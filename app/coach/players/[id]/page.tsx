@@ -23,6 +23,7 @@ export default function PlayerDetailPage() {
     const [enrollments, setEnrollments] = useState<any[]>([])
     const [gameStats, setGameStats] = useState<GameStat[]>([])
     const [evaluations, setEvaluations] = useState<any[]>([])
+    const [attendanceStats, setAttendanceStats] = useState({ gamesAttended: 0, totalGames: 0, trainingAttended: 0, totalTraining: 0 })
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -84,6 +85,39 @@ export default function PlayerDetailPage() {
             .order('created_at', { ascending: false })
 
         if (evaluationsData) setEvaluations(evaluationsData)
+
+        // Get attendance stats
+        if (enrollmentsData && enrollmentsData.length > 0) {
+            const campIds = enrollmentsData.map((e: any) => e.camp_id)
+
+            // Get total games
+            const { count: totalGames } = await supabase
+                .from('games')
+                .select('*', { count: 'exact', head: true })
+                .in('camp_id', campIds)
+
+            // Get total training
+            const { count: totalTraining } = await supabase
+                .from('training_sessions')
+                .select('*', { count: 'exact', head: true })
+                .in('camp_id', campIds)
+
+            // Get attendance records
+            const { data: attendance } = await supabase
+                .from('attendance')
+                .select('*')
+                .eq('student_id', studentId)
+
+            const gamesAttended = attendance?.filter(a => a.game_id && a.status === 'present').length || 0
+            const trainingAttended = attendance?.filter(a => a.training_session_id && a.status === 'present').length || 0
+
+            setAttendanceStats({
+                gamesAttended,
+                totalGames: totalGames || 0,
+                trainingAttended,
+                totalTraining: totalTraining || 0
+            })
+        }
 
         setLoading(false)
     }
@@ -170,6 +204,36 @@ export default function PlayerDetailPage() {
                         <CardBody className="text-center">
                             <div className="text-3xl font-bold text-white">{avgStats.blocks}</div>
                             <div className="text-gray-400 text-[10px] uppercase tracking-widest mt-1">Avg Blocks</div>
+                        </CardBody>
+                    </Card>
+                </div>
+
+                {/* Attendance Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <Card className="border-primary/30">
+                        <CardBody className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white font-oswald uppercase">Games Attendance</h3>
+                                <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">Oraganized Games</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-3xl font-bold text-primary">{attendanceStats.gamesAttended}</span>
+                                <span className="text-gray-500 text-xl font-bold mx-1">/</span>
+                                <span className="text-xl font-bold text-gray-400">{attendanceStats.totalGames}</span>
+                            </div>
+                        </CardBody>
+                    </Card>
+                    <Card className="border-primary/30">
+                        <CardBody className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white font-oswald uppercase">Training Attendance</h3>
+                                <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">Sessions Attended</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-3xl font-bold text-primary">{attendanceStats.trainingAttended}</span>
+                                <span className="text-gray-500 text-xl font-bold mx-1">/</span>
+                                <span className="text-xl font-bold text-gray-400">{attendanceStats.totalTraining}</span>
+                            </div>
                         </CardBody>
                     </Card>
                 </div>

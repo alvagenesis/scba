@@ -43,7 +43,32 @@ export default async function StudentDashboard() {
         .from('evaluations')
         .select('*, training_sessions(*)')
         .eq('student_id', user.id)
+        .eq('student_id', user.id)
         .order('created_at', { ascending: false })
+
+    // Get attendance records
+    const { data: attendance } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('student_id', user.id)
+
+    // Calculate Attendance Stats
+    const campIds = enrollments?.map((e: any) => e.camp_id) || []
+
+    // Get total games in enrolled camps
+    const { count: totalGames } = await supabase
+        .from('games')
+        .select('*', { count: 'exact', head: true })
+        .in('camp_id', campIds)
+
+    // Get total training sessions in enrolled camps
+    const { count: totalTraining } = await supabase
+        .from('training_sessions')
+        .select('*', { count: 'exact', head: true })
+        .in('camp_id', campIds)
+
+    const gamesAttended = attendance?.filter(a => a.game_id && a.status === 'present').length || 0
+    const trainingAttended = attendance?.filter(a => a.training_session_id && a.status === 'present').length || 0
 
     const avgStats = calculateAverageStats(gameStats || [])
 
@@ -87,6 +112,36 @@ export default async function StudentDashboard() {
                         <CardBody className="text-center">
                             <div className="text-3xl font-bold text-white">{avgStats.blocks}</div>
                             <div className="text-gray-400 text-[10px] uppercase tracking-widest mt-1">Avg Blocks</div>
+                        </CardBody>
+                    </Card>
+                </div>
+
+                {/* Attendance Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <Card className="border-primary/30">
+                        <CardBody className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white font-oswald uppercase">Games Attendance</h3>
+                                <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">Oraganized Games</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-3xl font-bold text-primary">{gamesAttended}</span>
+                                <span className="text-gray-500 text-xl font-bold mx-1">/</span>
+                                <span className="text-xl font-bold text-gray-400">{totalGames || 0}</span>
+                            </div>
+                        </CardBody>
+                    </Card>
+                    <Card className="border-primary/30">
+                        <CardBody className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white font-oswald uppercase">Training Attendance</h3>
+                                <p className="text-gray-400 text-xs uppercase tracking-widest mt-1">Sessions Attended</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-3xl font-bold text-primary">{trainingAttended}</span>
+                                <span className="text-gray-500 text-xl font-bold mx-1">/</span>
+                                <span className="text-xl font-bold text-gray-400">{totalTraining || 0}</span>
+                            </div>
                         </CardBody>
                     </Card>
                 </div>

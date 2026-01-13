@@ -20,6 +20,7 @@ export default function EvaluationsPage() {
     const [profile, setProfile] = useState<Profile | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState<string | null>(null)
+    const [attendance, setAttendance] = useState<{ [key: string]: 'present' | 'absent' | 'excused' }>({})
 
     const router = useRouter()
     const supabase = createClient()
@@ -83,6 +84,21 @@ export default function EvaluationsPage() {
                 evaluationsMap[evaluation.student_id] = evaluation
             })
             setEvaluations(evaluationsMap)
+            setEvaluations(evaluationsMap)
+        }
+
+        // Get attendance
+        const { data: attendanceData } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('training_session_id', sessionId)
+
+        if (attendanceData) {
+            const attendanceMap: { [key: string]: 'present' | 'absent' | 'excused' } = {}
+            attendanceData.forEach((record) => {
+                attendanceMap[record.student_id] = record.status
+            })
+            setAttendance(attendanceMap)
         }
 
         setLoading(false)
@@ -127,6 +143,51 @@ export default function EvaluationsPage() {
         }
 
         setSaving(null)
+    }
+
+    const handleAttendanceToggle = async (studentId: string, currentStatus: string | undefined) => {
+        const newStatus = currentStatus === 'present' ? 'absent' : 'present'
+
+        // Optimistic update
+        setAttendance({
+            ...attendance,
+            [studentId]: newStatus
+        })
+
+        // Check if record exists
+        const { data: existingRecord } = await supabase
+            .from('attendance')
+            .select('id')
+            .eq('training_session_id', sessionId)
+            .eq('student_id', studentId)
+            .single()
+
+        let error
+        if (existingRecord) {
+            const result = await supabase
+                .from('attendance')
+                .update({ status: newStatus })
+                .eq('id', existingRecord.id)
+            error = result.error
+        } else {
+            const result = await supabase
+                .from('attendance')
+                .insert({
+                    training_session_id: sessionId,
+                    student_id: studentId,
+                    status: newStatus
+                })
+            error = result.error
+        }
+
+        if (error) {
+            // Revert on error
+            console.error('Error updating attendance:', error)
+            setAttendance({
+                ...attendance,
+                [studentId]: currentStatus as 'present' | 'absent' | 'excused'
+            })
+        }
     }
 
     const handleDelete = async (studentId: string) => {
@@ -191,93 +252,114 @@ export default function EvaluationsPage() {
 
                             return (
                                 <Card key={student.id} className="border-white/10 hover:border-primary/50 transition-all duration-300">
-                                    <CardHeader>
-                                        <h3 className="text-lg font-bold text-white font-oswald uppercase tracking-wider">{student.name}</h3>
+                                    <CardHeader className="flex flex-row items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={attendance[student.id] === 'present'}
+                                                onChange={() => handleAttendanceToggle(student.id, attendance[student.id])}
+                                                className="w-5 h-5 rounded border-gray-500 text-primary focus:ring-primary bg-transparent cursor-pointer"
+                                            />
+                                            <h3 className={`text-lg font-bold font-oswald uppercase tracking-wider ${attendance[student.id] === 'present' ? 'text-white' : 'text-gray-500'}`}>
+                                                {student.name}
+                                            </h3>
+                                        </div>
+                                        <span className={`text-xs font-bold uppercase tracking-widest px-2 py-1 rounded ${attendance[student.id] === 'present' ? 'bg-primary/20 text-primary' : 'bg-red-500/20 text-red-400'
+                                            }`}>
+                                            {attendance[student.id] === 'present' ? 'Present' : 'Absent'}
+                                        </span>
                                     </CardHeader>
                                     <CardBody>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                                    Rating (1-10)
-                                                </label>
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max="10"
-                                                    value={studentEvaluation.rating}
-                                                    onChange={(e) => {
-                                                        const newEval = { ...studentEvaluation, rating: parseInt(e.target.value) }
-                                                        setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
-                                                    }}
-                                                    className="w-full accent-primary h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                                                />
-                                                <div className="text-center mt-2">
-                                                    <span className="text-3xl font-bold text-primary font-oswald">{studentEvaluation.rating}/10</span>
+                                        {attendance[student.id] === 'present' ? (
+                                            <div className="space-y-4 animate-in fade-in duration-300">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                                        Rating (1-10)
+                                                    </label>
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="10"
+                                                        value={studentEvaluation.rating}
+                                                        onChange={(e) => {
+                                                            const newEval = { ...studentEvaluation, rating: parseInt(e.target.value) }
+                                                            setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
+                                                        }}
+                                                        className="w-full accent-primary h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                                                    />
+                                                    <div className="text-center mt-2">
+                                                        <span className="text-3xl font-bold text-primary font-oswald">{studentEvaluation.rating}/10</span>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                                        Strengths
+                                                    </label>
+                                                    <textarea
+                                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 placeholder:text-gray-600"
+                                                        rows={2}
+                                                        placeholder="What did the player do well?"
+                                                        value={studentEvaluation.strengths || ''}
+                                                        onChange={(e) => {
+                                                            const newEval = { ...studentEvaluation, strengths: e.target.value }
+                                                            setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                                        Areas to Improve
+                                                    </label>
+                                                    <textarea
+                                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 placeholder:text-gray-600"
+                                                        rows={2}
+                                                        placeholder="What should the player work on?"
+                                                        value={studentEvaluation.weaknesses || ''}
+                                                        onChange={(e) => {
+                                                            const newEval = { ...studentEvaluation, weaknesses: e.target.value }
+                                                            setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                                        Coach Notes
+                                                    </label>
+                                                    <textarea
+                                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 placeholder:text-gray-600"
+                                                        rows={2}
+                                                        placeholder="Additional notes..."
+                                                        value={studentEvaluation.coach_notes || ''}
+                                                        onChange={(e) => {
+                                                            const newEval = { ...studentEvaluation, coach_notes: e.target.value }
+                                                            setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                <div className="mt-6 flex gap-3">
+                                                    <Button
+                                                        onClick={() => handleSaveEvaluation(student.id, studentEvaluation)}
+                                                        disabled={saving === student.id}
+                                                        className="w-full md:w-auto"
+                                                    >
+                                                        {saving === student.id ? 'Saving...' : 'Save Evaluation'}
+                                                    </Button>
+                                                    {evaluations[student.id] && (
+                                                        <Button variant="danger" onClick={() => handleDelete(student.id)}>
+                                                            Delete
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
-
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                                    Strengths
-                                                </label>
-                                                <textarea
-                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 placeholder:text-gray-600"
-                                                    rows={2}
-                                                    placeholder="What did the player do well?"
-                                                    value={studentEvaluation.strengths || ''}
-                                                    onChange={(e) => {
-                                                        const newEval = { ...studentEvaluation, strengths: e.target.value }
-                                                        setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
-                                                    }}
-                                                />
+                                        ) : (
+                                            <div className="py-8 text-center text-gray-500 italic">
+                                                Mark as present to add evaluation
                                             </div>
-
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                                    Areas to Improve
-                                                </label>
-                                                <textarea
-                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 placeholder:text-gray-600"
-                                                    rows={2}
-                                                    placeholder="What should the player work on?"
-                                                    value={studentEvaluation.weaknesses || ''}
-                                                    onChange={(e) => {
-                                                        const newEval = { ...studentEvaluation, weaknesses: e.target.value }
-                                                        setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
-                                                    }}
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                                    Coach Notes
-                                                </label>
-                                                <textarea
-                                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 placeholder:text-gray-600"
-                                                    rows={2}
-                                                    placeholder="Additional notes..."
-                                                    value={studentEvaluation.coach_notes || ''}
-                                                    onChange={(e) => {
-                                                        const newEval = { ...studentEvaluation, coach_notes: e.target.value }
-                                                        setEvaluations({ ...evaluations, [student.id]: newEval as Evaluation })
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="mt-6 flex gap-3">
-                                            <Button
-                                                onClick={() => handleSaveEvaluation(student.id, studentEvaluation)}
-                                                disabled={saving === student.id}
-                                                className="w-full md:w-auto"
-                                            >
-                                                {saving === student.id ? 'Saving...' : 'Save Evaluation'}
-                                            </Button>
-                                            {evaluations[student.id] && (
-                                                <Button variant="danger" onClick={() => handleDelete(student.id)}>
-                                                    Delete
-                                                </Button>
-                                            )}
-                                        </div>
+                                        )}
                                     </CardBody>
                                 </Card>
                             )
