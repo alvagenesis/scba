@@ -211,9 +211,13 @@ export default function EvaluationsPage() {
             setEvaluations(newEvaluations)
         }
     }
+    const [processing, setProcessing] = useState(false)
 
-    const handleScan = (text: string) => {
-        if (!text || text === lastScannedId) return
+    const handleScan = async (text: string) => {
+        if (!text || text === lastScannedId || processing) return
+
+        setProcessing(true)
+        setLastScannedId(text)
 
         // Assume text is the student ID
         const student = students.find(s => s.id === text)
@@ -221,19 +225,25 @@ export default function EvaluationsPage() {
         if (student) {
             // Only update if not already present
             if (attendance[student.id] !== 'present') {
-                handleAttendanceToggle(student.id, attendance[student.id])
-                alert(`Marked ${student.name} as Present!`)
+                try {
+                    await handleAttendanceToggle(student.id, attendance[student.id])
+                    // Brief delay to show success if we had a UI for it, but closing is better
+                    setShowScanner(false)
+                } catch (err) {
+                    console.error("Scan failed", err)
+                }
             } else {
-                alert(`${student.name} is already marked Present.`)
+                // Already present, just close to avoid confusion loop
+                setShowScanner(false)
             }
-            setLastScannedId(text)
-
-            // Reset last scanned after delay to allow re-scanning if needed
-            setTimeout(() => setLastScannedId(null), 3000)
         } else {
-            // Could be invalid QR or student not in this camp
-            console.warn('Student not found for ID:', text)
+            // Invalid ID
+            // console.warn('Student not found for ID:', text)
         }
+
+        setProcessing(false)
+        // Reset last scanned after delay
+        setTimeout(() => setLastScannedId(null), 2000)
     }
 
     const handleError = (error: unknown) => {
