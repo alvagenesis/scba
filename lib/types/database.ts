@@ -63,6 +63,9 @@ export interface TrainingSession {
     updated_at: string
 }
 
+updated_at: string
+}
+
 export interface Evaluation {
     id: string
     training_session_id: string
@@ -71,6 +74,16 @@ export interface Evaluation {
     strengths: string | null
     weaknesses: string | null
     coach_notes: string | null
+    created_at: string
+    updated_at: string
+}
+
+export interface Attendance {
+    id: string
+    student_id: string
+    game_id?: string
+    training_session_id?: string
+    status: 'present' | 'absent' | 'excused'
     created_at: string
     updated_at: string
 }
