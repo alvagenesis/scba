@@ -63,8 +63,7 @@ export interface TrainingSession {
     updated_at: string
 }
 
-updated_at: string
-}
+
 
 export interface Evaluation {
     id: string
